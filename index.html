@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NO LOVE, ONLY BLOODS - Tic Tac Toe</title>
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #1a0000;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #660000;
+            border-radius: 5px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #990000;
+        }
+
+        /* Custom text selection */
+        ::selection {
+            background: #ff1a1a;
+            color: #fff;
+        }
+
+        ::-moz-selection {
+            background: #ff1a1a;
+            color: #fff;
+        }
+
+        body {
+            background: linear-gradient(135deg, #1a0000 0%, #2d0000 100%);
+            color: #ff1a1a;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 800px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            width: 100%;
+            padding: 20px;
+            border-bottom: 2px solid #ff1a1a;
+            position: relative;
+        }
+
+        h1 {
+            font-size: 3rem;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            text-shadow: 0 0 5px #ff1a1a;
+            margin-bottom: 10px;
+            min-height: 70px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .typing-cursor {
+            display: inline-block;
+            width: 3px;
+            height: 3rem;
+            background-color: #ff1a1a;
+            margin-left: 5px;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            color: #cc0000;
+            font-style: italic;
+        }
+
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            gap: 30px;
+        }
+
+        .connection-panel {
+            background: rgba(40, 0, 0, 0.8);
+            border: 2px solid #ff1a1a;
+            border-radius: 10px;
+            padding: 20px;
+            width: 100%;
+            max-width: 500px;
+            box-shadow: 0 0 10px rgba(255, 26, 26, 0.2);
+        }
+
+        .panel-title {
+            text-align: center;
+            margin-bottom: 15px;
+            font-size: 1.5rem;
+            color: #ff6666;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #ff9999;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px;
+            background: rgba(20, 0, 0, 0.8);
+            border: 1px solid #ff3333;
+            border-radius: 5px;
+            color: #ff6666;
+            font-size: 1rem;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #ff1a1a;
+            box-shadow: 0 0 5px #ff1a1a;
+        }
+
+        .btn {
+            background: linear-gradient(to bottom, #cc0000, #990000);
+            color: #fff;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: bold;
+            transition: all 0.3s;
+            width: 100%;
+            margin-top: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn:hover {
+            background: linear-gradient(to bottom, #ff1a1a, #cc0000);
+            box-shadow: 0 0 10px rgba(255, 26, 26, 0.3);
+        }
+
+        .btn:disabled {
+            background: #660000;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .status {
+            text-align: center;
+            margin: 15px 0;
+            font-size: 1.2rem;
+            min-height: 30px;
+            color: #ff6666;
+        }
+
+        .game-board {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-gap: 10px;
+            width: 100%;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+
+        .cell {
+            aspect-ratio: 1;
+            background: rgba(30, 0, 0, 0.8);
+            border: 2px solid #ff3333;
+            border-radius: 5px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 3rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: #ff1a1a;
+        }
+
+        .cell:hover {
+            background: rgba(50, 0, 0, 0.8);
+            border-color: #ff1a1a;
+        }
+
+        .cell.x {
+            color: #ff1a1a;
+            text-shadow: 0 0 5px rgba(255, 26, 26, 0.5);
+        }
+
+        .cell.o {
+            color: #ff6666;
+            text-shadow: 0 0 5px rgba(255, 102, 102, 0.5);
+        }
+
+        .player-info {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            max-width: 400px;
+            margin-top: 20px;
+        }
+
+        .player {
+            text-align: center;
+            padding: 10px 20px;
+            background: rgba(40, 0, 0, 0.8);
+            border-radius: 10px;
+            border: 2px solid #ff3333;
+            flex: 1;
+            margin: 0 10px;
+        }
+
+        .player.active {
+            border-color: #ff1a1a;
+            box-shadow: 0 0 10px rgba(255, 26, 26, 0.3);
+        }
+
+        .player-name {
+            font-size: 1.2rem;
+            margin-bottom: 5px;
+        }
+
+        .player-symbol {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .game-over {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 1.5rem;
+            color: #ff1a1a;
+            text-shadow: 0 0 5px rgba(255, 26, 26, 0.5);
+        }
+
+        .restart-options {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .restart-options .btn {
+            flex: 1;
+        }
+
+        .blood-effect {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: -1;
+            opacity: 0.1;
+        }
+
+        .blood-drop {
+            position: absolute;
+            width: 5px;
+            height: 10px;
+            background: #ff1a1a;
+            border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+            animation: fall linear infinite;
+        }
+
+        @keyframes fall {
+            to {
+                transform: translateY(100vh);
+            }
+        }
+
+        @media (max-width: 600px) {
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .player-info {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .player {
+                margin: 5px 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="blood-effect" id="bloodEffect"></div>
+    
+    <div class="container">
+        <header>
+            <h1 id="gameTitle"></h1>
+            <div class="subtitle">A Deadly Game of Tic Tac Toe</div>
+        </header>
+        
+        <div class="game-container">
+            <div class="connection-panel" id="connectionPanel">
+                <h2 class="panel-title">CONNECT TO OPPONENT</h2>
+                
+                <div class="input-group">
+                    <label for="myId">YOUR ID:</label>
+                    <input type="text" id="myId" readonly>
+                    <button class="btn" id="copyIdBtn">COPY ID</button>
+                </div>
+                
+                <div class="input-group">
+                    <label for="friendId">FRIEND'S ID:</label>
+                    <input type="text" id="friendId" placeholder="Enter opponent's ID">
+                </div>
+                
+                <button class="btn" id="connectBtn">CONNECT</button>
+                
+                <div class="status" id="connectionStatus">Waiting for connection...</div>
+            </div>
+            
+            <div class="game-area hidden" id="gameArea">
+                <div class="player-info">
+                    <div class="player" id="player1">
+                        <div class="player-name">YOU</div>
+                        <div class="player-symbol" id="playerSymbol">X</div>
+                    </div>
+                    <div class="player" id="player2">
+                        <div class="player-name">OPPONENT</div>
+                        <div class="player-symbol">O</div>
+                    </div>
+                </div>
+                
+                <div class="status" id="gameStatus">Your turn</div>
+                
+                <div class="game-board" id="gameBoard">
+                    <div class="cell" data-index="0"></div>
+                    <div class="cell" data-index="1"></div>
+                    <div class="cell" data-index="2"></div>
+                    <div class="cell" data-index="3"></div>
+                    <div class="cell" data-index="4"></div>
+                    <div class="cell" data-index="5"></div>
+                    <div class="cell" data-index="6"></div>
+                    <div class="cell" data-index="7"></div>
+                    <div class="cell" data-index="8"></div>
+                </div>
+                
+                <div class="game-over hidden" id="gameOver">
+                    <div id="winnerMessage"></div>
+                    <div class="restart-options">
+                        <button class="btn" id="playAgainBtn">PLAY AGAIN</button>
+                        <button class="btn" id="mainMenuBtn">MAIN MENU</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Game state
+        let peer = null;
+        let conn = null;
+        let myId = null;
+        let gameActive = true;
+        let currentPlayer = 'X';
+        let gameState = ['', '', '', '', '', '', '', '', ''];
+        let mySymbol = 'X';
+        let isMyTurn = false;
+        let isGameOver = false;
+
+        // DOM elements
+        const connectionPanel = document.getElementById('connectionPanel');
+        const gameArea = document.getElementById('gameArea');
+        const myIdInput = document.getElementById('myId');
+        const friendIdInput = document.getElementById('friendId');
+        const connectBtn = document.getElementById('connectBtn');
+        const copyIdBtn = document.getElementById('copyIdBtn');
+        const connectionStatus = document.getElementById('connectionStatus');
+        const gameStatus = document.getElementById('gameStatus');
+        const gameBoard = document.getElementById('gameBoard');
+        const player1 = document.getElementById('player1');
+        const player2 = document.getElementById('player2');
+        const playerSymbol = document.getElementById('playerSymbol');
+        const gameOver = document.getElementById('gameOver');
+        const winnerMessage = document.getElementById('winnerMessage');
+        const playAgainBtn = document.getElementById('playAgainBtn');
+        const mainMenuBtn = document.getElementById('mainMenuBtn');
+        const bloodEffect = document.getElementById('bloodEffect');
+        const gameTitle = document.getElementById('gameTitle');
+
+        // Create blood effect
+        function createBloodEffect() {
+            for (let i = 0; i < 30; i++) {
+                const drop = document.createElement('div');
+                drop.className = 'blood-drop';
+                drop.style.left = `${Math.random() * 100}%`;
+                drop.style.animationDuration = `${Math.random() * 5 + 3}s`;
+                drop.style.animationDelay = `${Math.random() * 5}s`;
+                drop.style.opacity = `${Math.random() * 0.5 + 0.1}`;
+                bloodEffect.appendChild(drop);
+            }
+        }
+
+        // Typing effect for the title
+        function typeTitle() {
+            const title = "NO LOVE, ONLY BLOODS";
+            let i = 0;
+            
+            function type() {
+                if (i < title.length) {
+                    gameTitle.innerHTML = title.substring(0, i+1) + '<span class="typing-cursor"></span>';
+                    i++;
+                    setTimeout(type, 150);
+                } else {
+                    gameTitle.innerHTML = title;
+                }
+            }
+            
+            type();
+        }
+
+        // Initialize PeerJS
+        function initializePeer() {
+            peer = new Peer({
+                debug: 3
+            });
+
+            peer.on('open', (id) => {
+                myId = id;
+                myIdInput.value = id;
+                connectionStatus.textContent = 'Your ID is ready. Share it with your opponent.';
+            });
+
+            peer.on('connection', (connection) => {
+                conn = connection;
+                setupConnection();
+                connectionStatus.textContent = 'Opponent connected!';
+                setTimeout(() => {
+                    startGame(false); // You are O, opponent is X
+                }, 1000);
+            });
+
+            peer.on('error', (err) => {
+                console.error('PeerJS error:', err);
+                connectionStatus.textContent = 'Connection error: ' + err.type;
+            });
+        }
+
+        // Setup connection event handlers
+        function setupConnection() {
+            conn.on('open', () => {
+                connectionStatus.textContent = 'Connected to opponent!';
+                connectBtn.disabled = true;
+            });
+
+            conn.on('data', (data) => {
+                handleMessage(data);
+            });
+
+            conn.on('close', () => {
+                connectionStatus.textContent = 'Connection closed.';
+                resetGame();
+            });
+
+            conn.on('error', (err) => {
+                console.error('Connection error:', err);
+                connectionStatus.textContent = 'Connection error.';
+            });
+        }
+
+        // Handle incoming messages
+        function handleMessage(data) {
+            switch (data.type) {
+                case 'start':
+                    mySymbol = data.symbol;
+                    playerSymbol.textContent = mySymbol;
+                    isMyTurn = data.turn;
+                    updateGameStatus();
+                    break;
+                case 'move':
+                    handleOpponentMove(data.index);
+                    break;
+                case 'gameOver':
+                    handleGameOver(data);
+                    break;
+                case 'restartRequest':
+                    handleRestartRequest();
+                    break;
+                case 'restartAccepted':
+                    restartGame();
+                    break;
+                case 'restartDeclined':
+                    gameStatus.textContent = 'Opponent declined to play again.';
+                    setTimeout(() => {
+                        resetGame();
+                    }, 3000);
+                    break;
+            }
+        }
+
+        // Connect to a peer
+        function connectToPeer() {
+            const friendId = friendIdInput.value.trim();
+            if (!friendId) {
+                connectionStatus.textContent = 'Please enter your friend\'s ID.';
+                return;
+            }
+
+            connectionStatus.textContent = 'Connecting...';
+            conn = peer.connect(friendId);
+            setupConnection();
+            
+            conn.on('open', () => {
+                connectionStatus.textContent = 'Connected to opponent!';
+                connectBtn.disabled = true;
+                startGame(true); // You are X, opponent is O
+            });
+        }
+
+        // Start the game
+        function startGame(isInitiator) {
+            connectionPanel.classList.add('hidden');
+            gameArea.classList.remove('hidden');
+            
+            if (isInitiator) {
+                mySymbol = 'X';
+                isMyTurn = true;
+                player1.classList.add('active');
+            } else {
+                mySymbol = 'O';
+                isMyTurn = false;
+                player2.classList.add('active');
+            }
+            
+            playerSymbol.textContent = mySymbol;
+            updateGameStatus();
+            
+            // Send start message to opponent
+            if (conn && conn.open) {
+                conn.send({
+                    type: 'start',
+                    symbol: isInitiator ? 'O' : 'X',
+                    turn: !isInitiator
+                });
+            }
+        }
+
+        // Update game status display
+        function updateGameStatus() {
+            if (isGameOver) {
+                // Game is over, don't show turn information
+                return;
+            }
+            
+            if (isMyTurn) {
+                gameStatus.textContent = 'Your turn';
+                player1.classList.add('active');
+                player2.classList.remove('active');
+            } else {
+                gameStatus.textContent = "Opponent's turn";
+                player2.classList.add('active');
+                player1.classList.remove('active');
+            }
+        }
+
+        // Handle cell click
+        function handleCellClick(event) {
+            const clickedCell = event.target;
+            const cellIndex = parseInt(clickedCell.getAttribute('data-index'));
+            
+            // Check if cell is already played or not player's turn or game is over
+            if (gameState[cellIndex] !== '' || !isMyTurn || !gameActive || isGameOver) {
+                return;
+            }
+            
+            // Make move
+            gameState[cellIndex] = mySymbol;
+            clickedCell.textContent = mySymbol;
+            clickedCell.classList.add(mySymbol.toLowerCase());
+            
+            // Check for win or draw
+            const winner = checkWinner();
+            if (winner) {
+                endGame(false, winner);
+                return;
+            } else if (checkDraw()) {
+                endGame(true);
+                return;
+            }
+            
+            // Switch turns
+            isMyTurn = false;
+            updateGameStatus();
+            
+            // Send move to opponent
+            if (conn && conn.open) {
+                conn.send({
+                    type: 'move',
+                    index: cellIndex
+                });
+            }
+        }
+
+        // Handle opponent's move
+        function handleOpponentMove(index) {
+            const opponentSymbol = mySymbol === 'X' ? 'O' : 'X';
+            gameState[index] = opponentSymbol;
+            
+            const cell = document.querySelector(`.cell[data-index="${index}"]`);
+            cell.textContent = opponentSymbol;
+            cell.classList.add(opponentSymbol.toLowerCase());
+            
+            // Check for win or draw
+            const winner = checkWinner();
+            if (winner) {
+                endGame(false, winner);
+                return;
+            } else if (checkDraw()) {
+                endGame(true);
+                return;
+            }
+            
+            // Switch turns
+            isMyTurn = true;
+            updateGameStatus();
+        }
+
+        // Check for a winner and return winning player
+        function checkWinner() {
+            const winPatterns = [
+                [0, 1, 2], [3, 4, 5], [6, 7, 8], // rows
+                [0, 3, 6], [1, 4, 7], [2, 5, 8], // columns
+                [0, 4, 8], [2, 4, 6]             // diagonals
+            ];
+            
+            for (let pattern of winPatterns) {
+                const [a, b, c] = pattern;
+                if (gameState[a] && gameState[a] === gameState[b] && gameState[a] === gameState[c]) {
+                    return gameState[a]; // Return the winning symbol
+                }
+            }
+            
+            return null;
+        }
+
+        // Check for a draw
+        function checkDraw() {
+            return !gameState.includes('');
+        }
+
+        // End the game
+        function endGame(isDraw, winner = null) {
+            gameActive = false;
+            isGameOver = true;
+            
+            // Remove active player indicators
+            player1.classList.remove('active');
+            player2.classList.remove('active');
+            
+            if (isDraw) {
+                winnerMessage.textContent = "It's a draw!";
+                gameStatus.textContent = "Game ended in a draw!";
+            } else {
+                if (winner === mySymbol) {
+                    winnerMessage.textContent = "You win!";
+                    gameStatus.textContent = "You won the game!";
+                } else {
+                    winnerMessage.textContent = "Opponent wins!";
+                    gameStatus.textContent = "Opponent won the game!";
+                }
+            }
+            
+            gameOver.classList.remove('hidden');
+            
+            // Send game over message to opponent
+            if (conn && conn.open) {
+                conn.send({
+                    type: 'gameOver',
+                    isDraw: isDraw,
+                    winner: winner
+                });
+            }
+        }
+
+        // Handle game over from opponent
+        function handleGameOver(data) {
+            gameActive = false;
+            isGameOver = true;
+            
+            // Remove active player indicators
+            player1.classList.remove('active');
+            player2.classList.remove('active');
+            
+            if (data.isDraw) {
+                winnerMessage.textContent = "It's a draw!";
+                gameStatus.textContent = "Game ended in a draw!";
+            } else {
+                if (data.winner === mySymbol) {
+                    winnerMessage.textContent = "You win!";
+                    gameStatus.textContent = "You won the game!";
+                } else {
+                    winnerMessage.textContent = "Opponent wins!";
+                    gameStatus.textContent = "Opponent won the game!";
+                }
+            }
+            
+            gameOver.classList.remove('hidden');
+        }
+
+        // Handle restart request
+        function handleRestartRequest() {
+            if (confirm('Opponent wants to play again. Accept?')) {
+                if (conn && conn.open) {
+                    conn.send({ type: 'restartAccepted' });
+                }
+                restartGame();
+            } else {
+                if (conn && conn.open) {
+                    conn.send({ type: 'restartDeclined' });
+                }
+                resetGame();
+            }
+        }
+
+        // Restart the game
+        function restartGame() {
+            gameState = ['', '', '', '', '', '', '', '', ''];
+            gameActive = true;
+            isGameOver = false;
+            
+            // Clear the board
+            document.querySelectorAll('.cell').forEach(cell => {
+                cell.textContent = '';
+                cell.classList.remove('x', 'o');
+            });
+            
+            // Reset turns - the player who didn't start last game goes first
+            isMyTurn = !isMyTurn;
+            updateGameStatus();
+            
+            gameOver.classList.add('hidden');
+        }
+
+        // Reset the game and go back to main menu
+        function resetGame() {
+            gameState = ['', '', '', '', '', '', '', '', ''];
+            gameActive = true;
+            isGameOver = false;
+            currentPlayer = 'X';
+            isMyTurn = false;
+            
+            // Clear the board
+            document.querySelectorAll('.cell').forEach(cell => {
+                cell.textContent = '';
+                cell.classList.remove('x', 'o');
+            });
+            
+            // Reset UI
+            gameArea.classList.add('hidden');
+            connectionPanel.classList.remove('hidden');
+            gameOver.classList.add('hidden');
+            player1.classList.remove('active');
+            player2.classList.remove('active');
+            
+            // Reset connection
+            if (conn) {
+                conn.close();
+                conn = null;
+            }
+            
+            connectBtn.disabled = false;
+            connectionStatus.textContent = 'Waiting for connection...';
+            friendIdInput.value = '';
+        }
+
+        // Send restart request to opponent
+        function sendRestartRequest() {
+            if (conn && conn.open) {
+                conn.send({ type: 'restartRequest' });
+            }
+        }
+
+        // Copy my ID to clipboard
+        function copyMyId() {
+            myIdInput.select();
+            document.execCommand('copy');
+            connectionStatus.textContent = 'ID copied to clipboard!';
+        }
+
+        // Initialize the game
+        function init() {
+            createBloodEffect();
+            typeTitle();
+            initializePeer();
+            
+            // Event listeners
+            connectBtn.addEventListener('click', connectToPeer);
+            copyIdBtn.addEventListener('click', copyMyId);
+            gameBoard.addEventListener('click', handleCellClick);
+            playAgainBtn.addEventListener('click', sendRestartRequest);
+            mainMenuBtn.addEventListener('click', resetGame);
+            
+            // Allow Enter key to connect
+            friendIdInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    connectToPeer();
+                }
+            });
+        }
+
+        // Start the game when page loads
+        window.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
