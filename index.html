@@ -349,9 +349,8 @@
                 </div>
                 
                 <button class="btn" id="connectBtn">CONNECT</button>
-                <button class="btn" id="disconnectBtn" style="display: none;">DISCONNECT</button>
                 
-                <div class="status" id="connectionStatus">Generating your ID...</div>
+                <div class="status" id="connectionStatus">Waiting for connection...</div>
             </div>
             
             <div class="game-area hidden" id="gameArea">
@@ -366,7 +365,7 @@
                     </div>
                 </div>
                 
-                <div class="status" id="gameStatus">Waiting for game to start...</div>
+                <div class="status" id="gameStatus">Your turn</div>
                 
                 <div class="game-board" id="gameBoard">
                     <div class="cell" data-index="0"></div>
@@ -401,8 +400,6 @@
         let gameState = ['', '', '', '', '', '', '', '', ''];
         let mySymbol = 'X';
         let isMyTurn = false;
-        let isGameOver = false;
-        let isConnected = false;
 
         // DOM elements
         const connectionPanel = document.getElementById('connectionPanel');
@@ -410,7 +407,6 @@
         const myIdInput = document.getElementById('myId');
         const friendIdInput = document.getElementById('friendId');
         const connectBtn = document.getElementById('connectBtn');
-        const disconnectBtn = document.getElementById('disconnectBtn');
         const copyIdBtn = document.getElementById('copyIdBtn');
         const connectionStatus = document.getElementById('connectionStatus');
         const gameStatus = document.getElementById('gameStatus');
@@ -459,59 +455,27 @@
         // Initialize PeerJS
         function initializePeer() {
             peer = new Peer({
-                debug: 2,
-                config: {
-                    'iceServers': [
-                        { url: 'stun:stun.l.google.com:19302' },
-                        { url: 'stun:stun1.l.google.com:19302' }
-                    ]
-                }
+                debug: 3
             });
 
             peer.on('open', (id) => {
                 myId = id;
                 myIdInput.value = id;
                 connectionStatus.textContent = 'Your ID is ready. Share it with your opponent.';
-                connectBtn.disabled = false;
             });
 
             peer.on('connection', (connection) => {
-                if (conn && conn.open) {
-                    connection.close();
-                    return;
-                }
-                
                 conn = connection;
                 setupConnection();
                 connectionStatus.textContent = 'Opponent connected!';
-                isConnected = true;
-                connectBtn.disabled = true;
-                disconnectBtn.style.display = 'block';
-                
-                // If we're receiving a connection, we're player 2 (O)
                 setTimeout(() => {
-                    startGame(false);
-                }, 500);
+                    startGame(false); // You are O, opponent is X
+                }, 1000);
             });
 
             peer.on('error', (err) => {
                 console.error('PeerJS error:', err);
-                if (err.type === 'unavailable-id') {
-                    connectionStatus.textContent = 'ID unavailable. Try refreshing the page.';
-                } else {
-                    connectionStatus.textContent = 'Connection error: ' + err.type;
-                }
-                connectBtn.disabled = false;
-            });
-
-            peer.on('disconnected', () => {
-                connectionStatus.textContent = 'Connection lost. Trying to reconnect...';
-                peer.reconnect();
-            });
-
-            peer.on('close', () => {
-                connectionStatus.textContent = 'Connection closed.';
-                resetConnection();
+                connectionStatus.textContent = 'Connection error: ' + err.type;
             });
         }
 
@@ -519,25 +483,21 @@
         function setupConnection() {
             conn.on('open', () => {
                 connectionStatus.textContent = 'Connected to opponent!';
-                isConnected = true;
                 connectBtn.disabled = true;
-                disconnectBtn.style.display = 'block';
             });
 
             conn.on('data', (data) => {
-                console.log('Received data:', data);
                 handleMessage(data);
             });
 
             conn.on('close', () => {
-                connectionStatus.textContent = 'Connection closed by opponent.';
-                resetConnection();
+                connectionStatus.textContent = 'Connection closed.';
+                resetGame();
             });
 
             conn.on('error', (err) => {
                 console.error('Connection error:', err);
                 connectionStatus.textContent = 'Connection error.';
-                resetConnection();
             });
         }
 
@@ -556,7 +516,7 @@
                 case 'gameOver':
                     handleGameOver(data);
                     break;
-                case 'restartRequest':
+                case 'restart':
                     handleRestartRequest();
                     break;
                 case 'restartAccepted':
@@ -567,12 +527,6 @@
                     setTimeout(() => {
                         resetGame();
                     }, 3000);
-                    break;
-                case 'ping':
-                    // Respond to ping to keep connection alive
-                    if (conn && conn.open) {
-                        conn.send({ type: 'pong' });
-                    }
                     break;
             }
         }
@@ -585,60 +539,15 @@
                 return;
             }
 
-            if (friendId === myId) {
-                connectionStatus.textContent = "You can't connect to yourself!";
-                return;
-            }
-
             connectionStatus.textContent = 'Connecting...';
-            connectBtn.disabled = true;
+            conn = peer.connect(friendId);
+            setupConnection();
             
-            try {
-                conn = peer.connect(friendId, {
-                    reliable: true
-                });
-                
-                conn.on('open', () => {
-                    connectionStatus.textContent = 'Connected to opponent!';
-                    isConnected = true;
-                    connectBtn.disabled = true;
-                    disconnectBtn.style.display = 'block';
-                    startGame(true); // You are X, opponent is O
-                });
-                
-                conn.on('error', (err) => {
-                    console.error('Connection error:', err);
-                    connectionStatus.textContent = 'Failed to connect. Check the ID and try again.';
-                    connectBtn.disabled = false;
-                });
-                
-                setupConnection();
-            } catch (err) {
-                console.error('Error connecting:', err);
-                connectionStatus.textContent = 'Connection error. Please try again.';
-                connectBtn.disabled = false;
-            }
-        }
-
-        // Disconnect from peer
-        function disconnectFromPeer() {
-            if (conn) {
-                conn.close();
-            }
-            resetConnection();
-        }
-
-        // Reset connection
-        function resetConnection() {
-            isConnected = false;
-            conn = null;
-            connectBtn.disabled = false;
-            disconnectBtn.style.display = 'none';
-            connectionStatus.textContent = 'Disconnected.';
-            
-            if (gameArea.classList.contains('hidden') === false) {
-                resetGame();
-            }
+            conn.on('open', () => {
+                connectionStatus.textContent = 'Connected to opponent!';
+                connectBtn.disabled = true;
+                startGame(true); // You are X, opponent is O
+            });
         }
 
         // Start the game
@@ -671,10 +580,7 @@
 
         // Update game status display
         function updateGameStatus() {
-            if (isGameOver) {
-                // Game is over, don't show turn information
-                return;
-            }
+            if (!gameActive) return;
             
             if (isMyTurn) {
                 gameStatus.textContent = 'Your turn';
@@ -692,8 +598,8 @@
             const clickedCell = event.target;
             const cellIndex = parseInt(clickedCell.getAttribute('data-index'));
             
-            // Check if cell is already played or not player's turn or game is over
-            if (gameState[cellIndex] !== '' || !isMyTurn || !gameActive || isGameOver) {
+            // Check if cell is already played or not player's turn
+            if (gameState[cellIndex] !== '' || !isMyTurn || !gameActive) {
                 return;
             }
             
@@ -760,12 +666,6 @@
             for (let pattern of winPatterns) {
                 const [a, b, c] = pattern;
                 if (gameState[a] && gameState[a] === gameState[b] && gameState[a] === gameState[c]) {
-                    // Highlight winning cells
-                    const cells = document.querySelectorAll('.cell');
-                    cells[a].style.background = 'rgba(255, 26, 26, 0.3)';
-                    cells[b].style.background = 'rgba(255, 26, 26, 0.3)';
-                    cells[c].style.background = 'rgba(255, 26, 26, 0.3)';
-                    
                     return gameState[a]; // Return the winning symbol
                 }
             }
@@ -781,22 +681,14 @@
         // End the game
         function endGame(isDraw, winner = null) {
             gameActive = false;
-            isGameOver = true;
-            
-            // Remove active player indicators
-            player1.classList.remove('active');
-            player2.classList.remove('active');
             
             if (isDraw) {
                 winnerMessage.textContent = "It's a draw!";
-                gameStatus.textContent = "Game ended in a draw!";
             } else {
                 if (winner === mySymbol) {
                     winnerMessage.textContent = "You win!";
-                    gameStatus.textContent = "You won the game!";
                 } else {
                     winnerMessage.textContent = "Opponent wins!";
-                    gameStatus.textContent = "Opponent won the game!";
                 }
             }
             
@@ -815,43 +707,14 @@
         // Handle game over from opponent
         function handleGameOver(data) {
             gameActive = false;
-            isGameOver = true;
-            
-            // Remove active player indicators
-            player1.classList.remove('active');
-            player2.classList.remove('active');
-            
-            // Highlight winning cells on opponent's board too
-            const winner = checkWinner();
-            if (winner && !data.isDraw) {
-                const winPatterns = [
-                    [0, 1, 2], [3, 4, 5], [6, 7, 8],
-                    [0, 3, 6], [1, 4, 7], [2, 5, 8],
-                    [0, 4, 8], [2, 4, 6]
-                ];
-                
-                for (let pattern of winPatterns) {
-                    const [a, b, c] = pattern;
-                    if (gameState[a] && gameState[a] === gameState[b] && gameState[a] === gameState[c]) {
-                        const cells = document.querySelectorAll('.cell');
-                        cells[a].style.background = 'rgba(255, 26, 26, 0.3)';
-                        cells[b].style.background = 'rgba(255, 26, 26, 0.3)';
-                        cells[c].style.background = 'rgba(255, 26, 26, 0.3)';
-                        break;
-                    }
-                }
-            }
             
             if (data.isDraw) {
                 winnerMessage.textContent = "It's a draw!";
-                gameStatus.textContent = "Game ended in a draw!";
             } else {
                 if (data.winner === mySymbol) {
                     winnerMessage.textContent = "You win!";
-                    gameStatus.textContent = "You won the game!";
                 } else {
                     winnerMessage.textContent = "Opponent wins!";
-                    gameStatus.textContent = "Opponent won the game!";
                 }
             }
             
@@ -877,13 +740,11 @@
         function restartGame() {
             gameState = ['', '', '', '', '', '', '', '', ''];
             gameActive = true;
-            isGameOver = false;
             
-            // Clear the board and reset cell styles
+            // Clear the board
             document.querySelectorAll('.cell').forEach(cell => {
                 cell.textContent = '';
                 cell.classList.remove('x', 'o');
-                cell.style.background = '';
             });
             
             // Reset turns - the player who didn't start last game goes first
@@ -897,15 +758,13 @@
         function resetGame() {
             gameState = ['', '', '', '', '', '', '', '', ''];
             gameActive = true;
-            isGameOver = false;
             currentPlayer = 'X';
             isMyTurn = false;
             
-            // Clear the board and reset cell styles
+            // Clear the board
             document.querySelectorAll('.cell').forEach(cell => {
                 cell.textContent = '';
                 cell.classList.remove('x', 'o');
-                cell.style.background = '';
             });
             
             // Reset UI
@@ -915,15 +774,21 @@
             player1.classList.remove('active');
             player2.classList.remove('active');
             
-            connectionStatus.textContent = 'Disconnected. Enter a new ID to play again.';
+            // Reset connection
+            if (conn) {
+                conn.close();
+                conn = null;
+            }
+            
+            connectBtn.disabled = false;
+            connectionStatus.textContent = 'Waiting for connection...';
             friendIdInput.value = '';
         }
 
         // Send restart request to opponent
         function sendRestartRequest() {
             if (conn && conn.open) {
-                conn.send({ type: 'restartRequest' });
-                gameStatus.textContent = 'Waiting for opponent to accept...';
+                conn.send({ type: 'restart' });
             }
         }
 
@@ -942,7 +807,6 @@
             
             // Event listeners
             connectBtn.addEventListener('click', connectToPeer);
-            disconnectBtn.addEventListener('click', disconnectFromPeer);
             copyIdBtn.addEventListener('click', copyMyId);
             gameBoard.addEventListener('click', handleCellClick);
             playAgainBtn.addEventListener('click', sendRestartRequest);
