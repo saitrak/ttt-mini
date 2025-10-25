@@ -349,8 +349,9 @@
                 </div>
                 
                 <button class="btn" id="connectBtn">CONNECT</button>
+                <button class="btn" id="disconnectBtn" style="display: none;">DISCONNECT</button>
                 
-                <div class="status" id="connectionStatus">Waiting for connection...</div>
+                <div class="status" id="connectionStatus">Generating your ID...</div>
             </div>
             
             <div class="game-area hidden" id="gameArea">
@@ -365,7 +366,7 @@
                     </div>
                 </div>
                 
-                <div class="status" id="gameStatus">Your turn</div>
+                <div class="status" id="gameStatus">Waiting for game to start...</div>
                 
                 <div class="game-board" id="gameBoard">
                     <div class="cell" data-index="0"></div>
@@ -400,6 +401,10 @@
         let gameState = ['', '', '', '', '', '', '', '', ''];
         let mySymbol = 'X';
         let isMyTurn = false;
+        let isGameOver = false;
+        let isConnected = false;
+        let connectionAttempts = 0;
+        const MAX_CONNECTION_ATTEMPTS = 3;
 
         // DOM elements
         const connectionPanel = document.getElementById('connectionPanel');
@@ -407,6 +412,7 @@
         const myIdInput = document.getElementById('myId');
         const friendIdInput = document.getElementById('friendId');
         const connectBtn = document.getElementById('connectBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
         const copyIdBtn = document.getElementById('copyIdBtn');
         const connectionStatus = document.getElementById('connectionStatus');
         const gameStatus = document.getElementById('gameStatus');
@@ -452,52 +458,108 @@
             type();
         }
 
-        // Initialize PeerJS
+        // Initialize PeerJS with improved configuration
         function initializePeer() {
-            peer = new Peer({
-                debug: 3
+            // Generate a random ID if needed
+            const peerId = 'player-' + Math.random().toString(36).substring(2, 9);
+            
+            peer = new Peer(peerId, {
+                debug: 2,
+                config: {
+                    'iceServers': [
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:stun1.l.google.com:19302' }
+                    ]
+                }
             });
 
             peer.on('open', (id) => {
+                console.log('PeerJS connected with ID:', id);
                 myId = id;
                 myIdInput.value = id;
                 connectionStatus.textContent = 'Your ID is ready. Share it with your opponent.';
+                connectBtn.disabled = false;
             });
 
             peer.on('connection', (connection) => {
+                console.log('Incoming connection from:', connection.peer);
+                
+                if (conn && conn.open) {
+                    console.log('Already connected, rejecting new connection');
+                    connection.close();
+                    return;
+                }
+                
                 conn = connection;
                 setupConnection();
                 connectionStatus.textContent = 'Opponent connected!';
+                isConnected = true;
+                connectBtn.disabled = true;
+                disconnectBtn.style.display = 'block';
+                
+                // If we're receiving a connection, we're player 2 (O)
                 setTimeout(() => {
-                    startGame(false); // You are O, opponent is X
-                }, 1000);
+                    startGame(false);
+                }, 500);
             });
 
             peer.on('error', (err) => {
                 console.error('PeerJS error:', err);
-                connectionStatus.textContent = 'Connection error: ' + err.type;
+                
+                if (err.type === 'unavailable-id') {
+                    connectionStatus.textContent = 'ID unavailable. Try refreshing the page.';
+                } else if (err.type === 'peer-unavailable') {
+                    connectionStatus.textContent = 'Opponent ID not found. Check the ID and try again.';
+                } else if (err.type === 'network') {
+                    connectionStatus.textContent = 'Network error. Check your connection.';
+                } else {
+                    connectionStatus.textContent = 'Connection error: ' + err.type;
+                }
+                
+                connectBtn.disabled = false;
+            });
+
+            peer.on('disconnected', () => {
+                console.log('PeerJS disconnected');
+                connectionStatus.textContent = 'Connection lost. Trying to reconnect...';
+                peer.reconnect();
+            });
+
+            peer.on('close', () => {
+                console.log('PeerJS connection closed');
+                connectionStatus.textContent = 'Connection closed.';
+                resetConnection();
             });
         }
 
         // Setup connection event handlers
         function setupConnection() {
+            if (!conn) return;
+            
             conn.on('open', () => {
+                console.log('Connection to peer established');
                 connectionStatus.textContent = 'Connected to opponent!';
+                isConnected = true;
                 connectBtn.disabled = true;
+                disconnectBtn.style.display = 'block';
+                connectionAttempts = 0; // Reset attempts on successful connection
             });
 
             conn.on('data', (data) => {
+                console.log('Received data:', data);
                 handleMessage(data);
             });
 
             conn.on('close', () => {
-                connectionStatus.textContent = 'Connection closed.';
-                resetGame();
+                console.log('Connection closed by peer');
+                connectionStatus.textContent = 'Connection closed by opponent.';
+                resetConnection();
             });
 
             conn.on('error', (err) => {
                 console.error('Connection error:', err);
                 connectionStatus.textContent = 'Connection error.';
+                resetConnection();
             });
         }
 
@@ -516,7 +578,7 @@
                 case 'gameOver':
                     handleGameOver(data);
                     break;
-                case 'restart':
+                case 'restartRequest':
                     handleRestartRequest();
                     break;
                 case 'restartAccepted':
@@ -528,10 +590,16 @@
                         resetGame();
                     }, 3000);
                     break;
+                case 'ping':
+                    // Respond to ping to keep connection alive
+                    if (conn && conn.open) {
+                        conn.send({ type: 'pong' });
+                    }
+                    break;
             }
         }
 
-        // Connect to a peer
+        // Connect to a peer with improved error handling
         function connectToPeer() {
             const friendId = friendIdInput.value.trim();
             if (!friendId) {
@@ -539,15 +607,76 @@
                 return;
             }
 
+            if (friendId === myId) {
+                connectionStatus.textContent = "You can't connect to yourself!";
+                return;
+            }
+
             connectionStatus.textContent = 'Connecting...';
-            conn = peer.connect(friendId);
-            setupConnection();
+            connectBtn.disabled = true;
+            connectionAttempts++;
             
-            conn.on('open', () => {
-                connectionStatus.textContent = 'Connected to opponent!';
-                connectBtn.disabled = true;
-                startGame(true); // You are X, opponent is O
-            });
+            try {
+                // Close existing connection if any
+                if (conn) {
+                    conn.close();
+                }
+                
+                conn = peer.connect(friendId, {
+                    reliable: true,
+                    serialization: 'json'
+                });
+                
+                conn.on('open', () => {
+                    console.log('Successfully connected to peer:', friendId);
+                    connectionStatus.textContent = 'Connected to opponent!';
+                    isConnected = true;
+                    connectBtn.disabled = true;
+                    disconnectBtn.style.display = 'block';
+                    connectionAttempts = 0; // Reset attempts on successful connection
+                    startGame(true); // You are X, opponent is O
+                });
+                
+                conn.on('error', (err) => {
+                    console.error('Connection error:', err);
+                    
+                    if (connectionAttempts < MAX_CONNECTION_ATTEMPTS) {
+                        connectionStatus.textContent = `Connection attempt ${connectionAttempts} failed. Retrying...`;
+                        setTimeout(connectToPeer, 1000);
+                    } else {
+                        connectionStatus.textContent = 'Failed to connect. Check the ID and try again.';
+                        connectBtn.disabled = false;
+                    }
+                });
+                
+                setupConnection();
+            } catch (err) {
+                console.error('Error connecting:', err);
+                connectionStatus.textContent = 'Connection error. Please try again.';
+                connectBtn.disabled = false;
+            }
+        }
+
+        // Disconnect from peer
+        function disconnectFromPeer() {
+            if (conn) {
+                conn.close();
+            }
+            resetConnection();
+        }
+
+        // Reset connection
+        function resetConnection() {
+            isConnected = false;
+            conn = null;
+            connectBtn.disabled = false;
+            disconnectBtn.style.display = 'none';
+            connectionStatus.textContent = 'Disconnected.';
+            connectionAttempts = 0;
+            
+            if (gameArea.classList.contains('hidden') === false) {
+                resetGame();
+            }
         }
 
         // Start the game
@@ -580,7 +709,10 @@
 
         // Update game status display
         function updateGameStatus() {
-            if (!gameActive) return;
+            if (isGameOver) {
+                // Game is over, don't show turn information
+                return;
+            }
             
             if (isMyTurn) {
                 gameStatus.textContent = 'Your turn';
@@ -598,8 +730,8 @@
             const clickedCell = event.target;
             const cellIndex = parseInt(clickedCell.getAttribute('data-index'));
             
-            // Check if cell is already played or not player's turn
-            if (gameState[cellIndex] !== '' || !isMyTurn || !gameActive) {
+            // Check if cell is already played or not player's turn or game is over
+            if (gameState[cellIndex] !== '' || !isMyTurn || !gameActive || isGameOver) {
                 return;
             }
             
@@ -666,6 +798,12 @@
             for (let pattern of winPatterns) {
                 const [a, b, c] = pattern;
                 if (gameState[a] && gameState[a] === gameState[b] && gameState[a] === gameState[c]) {
+                    // Highlight winning cells
+                    const cells = document.querySelectorAll('.cell');
+                    cells[a].style.background = 'rgba(255, 26, 26, 0.3)';
+                    cells[b].style.background = 'rgba(255, 26, 26, 0.3)';
+                    cells[c].style.background = 'rgba(255, 26, 26, 0.3)';
+                    
                     return gameState[a]; // Return the winning symbol
                 }
             }
@@ -681,14 +819,22 @@
         // End the game
         function endGame(isDraw, winner = null) {
             gameActive = false;
+            isGameOver = true;
+            
+            // Remove active player indicators
+            player1.classList.remove('active');
+            player2.classList.remove('active');
             
             if (isDraw) {
                 winnerMessage.textContent = "It's a draw!";
+                gameStatus.textContent = "Game ended in a draw!";
             } else {
                 if (winner === mySymbol) {
                     winnerMessage.textContent = "You win!";
+                    gameStatus.textContent = "You won the game!";
                 } else {
                     winnerMessage.textContent = "Opponent wins!";
+                    gameStatus.textContent = "Opponent won the game!";
                 }
             }
             
@@ -707,14 +853,43 @@
         // Handle game over from opponent
         function handleGameOver(data) {
             gameActive = false;
+            isGameOver = true;
+            
+            // Remove active player indicators
+            player1.classList.remove('active');
+            player2.classList.remove('active');
+            
+            // Highlight winning cells on opponent's board too
+            const winner = checkWinner();
+            if (winner && !data.isDraw) {
+                const winPatterns = [
+                    [0, 1, 2], [3, 4, 5], [6, 7, 8],
+                    [0, 3, 6], [1, 4, 7], [2, 5, 8],
+                    [0, 4, 8], [2, 4, 6]
+                ];
+                
+                for (let pattern of winPatterns) {
+                    const [a, b, c] = pattern;
+                    if (gameState[a] && gameState[a] === gameState[b] && gameState[a] === gameState[c]) {
+                        const cells = document.querySelectorAll('.cell');
+                        cells[a].style.background = 'rgba(255, 26, 26, 0.3)';
+                        cells[b].style.background = 'rgba(255, 26, 26, 0.3)';
+                        cells[c].style.background = 'rgba(255, 26, 26, 0.3)';
+                        break;
+                    }
+                }
+            }
             
             if (data.isDraw) {
                 winnerMessage.textContent = "It's a draw!";
+                gameStatus.textContent = "Game ended in a draw!";
             } else {
                 if (data.winner === mySymbol) {
                     winnerMessage.textContent = "You win!";
+                    gameStatus.textContent = "You won the game!";
                 } else {
                     winnerMessage.textContent = "Opponent wins!";
+                    gameStatus.textContent = "Opponent won the game!";
                 }
             }
             
@@ -740,11 +915,13 @@
         function restartGame() {
             gameState = ['', '', '', '', '', '', '', '', ''];
             gameActive = true;
+            isGameOver = false;
             
-            // Clear the board
+            // Clear the board and reset cell styles
             document.querySelectorAll('.cell').forEach(cell => {
                 cell.textContent = '';
                 cell.classList.remove('x', 'o');
+                cell.style.background = '';
             });
             
             // Reset turns - the player who didn't start last game goes first
@@ -758,13 +935,15 @@
         function resetGame() {
             gameState = ['', '', '', '', '', '', '', '', ''];
             gameActive = true;
+            isGameOver = false;
             currentPlayer = 'X';
             isMyTurn = false;
             
-            // Clear the board
+            // Clear the board and reset cell styles
             document.querySelectorAll('.cell').forEach(cell => {
                 cell.textContent = '';
                 cell.classList.remove('x', 'o');
+                cell.style.background = '';
             });
             
             // Reset UI
@@ -774,21 +953,15 @@
             player1.classList.remove('active');
             player2.classList.remove('active');
             
-            // Reset connection
-            if (conn) {
-                conn.close();
-                conn = null;
-            }
-            
-            connectBtn.disabled = false;
-            connectionStatus.textContent = 'Waiting for connection...';
+            connectionStatus.textContent = 'Disconnected. Enter a new ID to play again.';
             friendIdInput.value = '';
         }
 
         // Send restart request to opponent
         function sendRestartRequest() {
             if (conn && conn.open) {
-                conn.send({ type: 'restart' });
+                conn.send({ type: 'restartRequest' });
+                gameStatus.textContent = 'Waiting for opponent to accept...';
             }
         }
 
@@ -807,6 +980,7 @@
             
             // Event listeners
             connectBtn.addEventListener('click', connectToPeer);
+            disconnectBtn.addEventListener('click', disconnectFromPeer);
             copyIdBtn.addEventListener('click', copyMyId);
             gameBoard.addEventListener('click', handleCellClick);
             playAgainBtn.addEventListener('click', sendRestartRequest);
