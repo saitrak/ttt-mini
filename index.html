@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PeerJS Tic Tac Toe</title>
+    <title>Ultimate Tic Tac Toe</title>
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         * {
             margin: 0;
@@ -13,29 +14,73 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
 
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 12px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #2a2a2a;
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #ff2d75, #ff5e9a);
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(255, 45, 117, 0.7);
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(135deg, #ff5e9a, #ff2d75);
+        }
+
+        /* Text Selection */
+        ::selection {
+            background-color: #ff2d75;
+            color: #ffffff;
+        }
+
         body {
-            background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);
+            background: linear-gradient(135deg, #1a1a1a, #2d2d2d);
             min-height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
             padding: 20px;
+            color: #f0f0f0;
         }
 
         .container {
-            background-color: rgba(255, 255, 255, 0.9);
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            background: rgba(40, 40, 40, 0.9);
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
             width: 100%;
             max-width: 500px;
             padding: 30px;
             text-align: center;
+            border: 1px solid #444;
+            position: relative;
+            overflow: hidden;
         }
 
         h1 {
-            color: #333;
+            color: #ff2d75;
             margin-bottom: 20px;
             font-size: 2.5rem;
+            text-shadow: 0 0 10px rgba(255, 45, 117, 0.7);
+            position: relative;
+            display: inline-block;
+        }
+
+        h1::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, #ff2d75, transparent);
+            border-radius: 3px;
         }
 
         .menu-screen, .game-screen {
@@ -50,18 +95,44 @@
         }
 
         .player-id-container {
-            background-color: #f0f0f0;
-            padding: 15px;
-            border-radius: 10px;
+            background: rgba(50, 50, 50, 0.8);
+            padding: 20px;
+            border-radius: 15px;
             width: 100%;
             margin-bottom: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            border: 1px solid #555;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .player-id-container:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+        }
+
+        .player-id-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 45, 117, 0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .player-id-container:hover::before {
+            left: 100%;
         }
 
         .player-id {
             font-weight: bold;
             font-size: 1.2rem;
-            color: #2c3e50;
+            color: #ff5e9a;
             word-break: break-all;
+            text-shadow: 0 0 5px rgba(255, 94, 154, 0.5);
         }
 
         .input-group {
@@ -72,37 +143,71 @@
         input {
             width: 100%;
             padding: 12px 15px;
-            border: 2px solid #ddd;
+            background: rgba(60, 60, 60, 0.8);
+            border: 2px solid #555;
             border-radius: 8px;
             font-size: 1rem;
-            transition: border-color 0.3s;
+            transition: all 0.3s;
+            color: #f0f0f0;
+            box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.3);
         }
 
         input:focus {
-            border-color: #3498db;
+            border-color: #ff2d75;
             outline: none;
+            box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.3);
+        }
+
+        input::placeholder {
+            color: #aaa;
         }
 
         button {
-            background-color: #3498db;
+            background: linear-gradient(135deg, #ff2d75, #ff5e9a);
             color: white;
             border: none;
             padding: 12px 25px;
             border-radius: 8px;
             font-size: 1rem;
             cursor: pointer;
-            transition: background-color 0.3s;
+            transition: all 0.3s;
             width: 100%;
             margin-top: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            position: relative;
+            overflow: hidden;
         }
 
         button:hover {
-            background-color: #2980b9;
+            background: linear-gradient(135deg, #ff5e9a, #ff2d75);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
         }
 
         button:disabled {
-            background-color: #95a5a6;
+            background: linear-gradient(135deg, #666, #888);
             cursor: not-allowed;
+            transform: none;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        button::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        button:hover::after {
+            left: 100%;
         }
 
         .game-status {
@@ -110,6 +215,13 @@
             font-weight: bold;
             margin: 15px 0;
             min-height: 30px;
+            color: #ff5e9a;
+            text-shadow: 0 0 5px rgba(255, 94, 154, 0.5);
+            padding: 10px;
+            border-radius: 8px;
+            background: rgba(50, 50, 50, 0.7);
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s;
         }
 
         .game-board {
@@ -119,10 +231,16 @@
             width: 300px;
             height: 300px;
             margin: 0 auto;
+            background: rgba(50, 50, 50, 0.7);
+            padding: 15px;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3), 
+                        inset 0 0 10px rgba(0, 0, 0, 0.2);
+            border: 1px solid #555;
         }
 
         .cell {
-            background-color: #ecf0f1;
+            background: rgba(70, 70, 70, 0.8);
             border-radius: 8px;
             display: flex;
             justify-content: center;
@@ -130,53 +248,84 @@
             font-size: 3rem;
             font-weight: bold;
             cursor: pointer;
-            transition: background-color 0.3s;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+            position: relative;
+            overflow: hidden;
         }
 
         .cell:hover {
-            background-color: #d5dbdb;
+            background: rgba(90, 90, 90, 0.9);
+            transform: scale(1.05);
+            box-shadow: 0 6px 10px rgba(0, 0, 0, 0.3);
         }
 
         .cell.x {
-            color: #e74c3c;
+            color: #ff2d75;
+            text-shadow: 0 0 10px rgba(255, 45, 117, 0.7);
         }
 
         .cell.o {
-            color: #3498db;
+            color: #2dccff;
+            text-shadow: 0 0 10px rgba(45, 204, 255, 0.7);
+        }
+
+        .cell.win {
+            animation: winPulse 1s infinite alternate;
+        }
+
+        @keyframes winPulse {
+            0% {
+                box-shadow: 0 0 5px rgba(255, 215, 0, 0.5);
+                transform: scale(1);
+            }
+            100% {
+                box-shadow: 0 0 20px rgba(255, 215, 0, 0.8);
+                transform: scale(1.05);
+            }
         }
 
         .connection-status {
             margin-top: 10px;
             font-size: 0.9rem;
-            color: #7f8c8d;
+            padding: 8px 15px;
+            border-radius: 20px;
+            background: rgba(50, 50, 50, 0.7);
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s;
         }
 
         .connected {
-            color: #27ae60;
+            color: #2dff9e;
+            text-shadow: 0 0 5px rgba(45, 255, 158, 0.5);
         }
 
         .disconnected {
-            color: #e74c3c;
+            color: #ff2d2d;
+            text-shadow: 0 0 5px rgba(255, 45, 45, 0.5);
         }
 
         .copy-btn {
-            background-color: #2ecc71;
+            background: linear-gradient(135deg, #2dccff, #2dff9e);
             width: auto;
             margin-top: 5px;
         }
 
         .copy-btn:hover {
-            background-color: #27ae60;
+            background: linear-gradient(135deg, #2dff9e, #2dccff);
         }
 
         .back-btn {
-            background-color: #e74c3c;
+            background: linear-gradient(135deg, #ff2d2d, #ff5e5e);
             width: auto;
         }
 
         .back-btn:hover {
-            background-color: #c0392b;
+            background: linear-gradient(135deg, #ff5e5e, #ff2d2d);
+        }
+
+        .icon {
+            margin-right: 8px;
         }
 
         @media (max-width: 500px) {
@@ -201,35 +350,35 @@
 </head>
 <body>
     <div class="container">
-        <h1>PeerJS Tic Tac Toe</h1>
+        <h1><i class="fas fa-chess-board icon"></i>Ultimate Tic Tac Toe</h1>
         
         <!-- Main Menu Screen -->
         <div class="menu-screen" id="menuScreen">
             <div class="player-id-container">
-                <p>Your Player ID:</p>
+                <p><i class="fas fa-id-card icon"></i>Your Player ID:</p>
                 <p class="player-id" id="playerId">Generating...</p>
-                <button class="copy-btn" id="copyIdBtn">Copy ID</button>
+                <button class="copy-btn" id="copyIdBtn"><i class="fas fa-copy icon"></i>Copy ID</button>
             </div>
             
             <div class="input-group">
                 <input type="text" id="opponentId" placeholder="Enter opponent's ID">
-                <button id="connectBtn">Connect</button>
+                <button id="connectBtn"><i class="fas fa-plug icon"></i>Connect</button>
             </div>
             
-            <div class="connection-status" id="connectionStatus">Not connected</div>
+            <div class="connection-status" id="connectionStatus"><i class="fas fa-circle icon"></i>Not connected</div>
         </div>
         
         <!-- Game Screen -->
         <div class="game-screen" id="gameScreen">
-            <div class="game-status" id="gameStatus">Waiting for opponent...</div>
+            <div class="game-status" id="gameStatus"><i class="fas fa-clock icon"></i>Waiting for opponent...</div>
             
             <div class="game-board" id="gameBoard">
                 <!-- Cells will be generated by JavaScript -->
             </div>
             
-            <div class="connection-status" id="gameConnectionStatus">Connected</div>
+            <div class="connection-status" id="gameConnectionStatus"><i class="fas fa-circle icon"></i>Connected</div>
             
-            <button class="back-btn" id="backBtn">Back to Menu</button>
+            <button class="back-btn" id="backBtn"><i class="fas fa-arrow-left icon"></i>Back to Menu</button>
         </div>
     </div>
 
@@ -260,8 +409,8 @@
         // Initialize the game
         function init() {
             // Generate a readable peer ID
-            const adjectives = ['Happy', 'Clever', 'Swift', 'Brave', 'Calm', 'Eager', 'Gentle', 'Jolly', 'Kind', 'Lucky'];
-            const nouns = ['Tiger', 'Eagle', 'Lion', 'Wolf', 'Bear', 'Shark', 'Fox', 'Hawk', 'Owl', 'Falcon'];
+            const adjectives = ['Dark', 'Vivid', 'Ultimate', 'Epic', 'Mighty', 'Radiant', 'Cosmic', 'Neon', 'Cyber', 'Phantom'];
+            const nouns = ['Dragon', 'Phoenix', 'Wolf', 'Tiger', 'Eagle', 'Lion', 'Panther', 'Falcon', 'Hawk', 'Raven'];
             
             const randomAdjective = adjectives[Math.floor(Math.random() * adjectives.length)];
             const randomNoun = nouns[Math.floor(Math.random() * nouns.length)];
@@ -283,7 +432,7 @@
             // Set up peer event handlers
             peer.on('open', (id) => {
                 playerIdElement.textContent = id;
-                connectionStatus.textContent = 'Ready to connect';
+                connectionStatus.innerHTML = '<i class="fas fa-circle connected icon"></i>Ready to connect';
                 connectionStatus.className = 'connection-status connected';
             });
 
@@ -295,7 +444,7 @@
 
             peer.on('error', (err) => {
                 console.error('PeerJS error:', err);
-                connectionStatus.textContent = `Error: ${err.type}`;
+                connectionStatus.innerHTML = `<i class="fas fa-circle disconnected icon"></i>Error: ${err.type}`;
                 connectionStatus.className = 'connection-status disconnected';
             });
 
@@ -328,7 +477,7 @@
                 return;
             }
 
-            connectionStatus.textContent = 'Connecting...';
+            connectionStatus.innerHTML = '<i class="fas fa-circle icon"></i>Connecting...';
             connectionStatus.className = 'connection-status';
 
             conn = peer.connect(opponentId, {
@@ -342,9 +491,9 @@
         // Set up connection event handlers
         function setupConnection() {
             conn.on('open', () => {
-                connectionStatus.textContent = 'Connected to opponent';
+                connectionStatus.innerHTML = '<i class="fas fa-circle connected icon"></i>Connected to opponent';
                 connectionStatus.className = 'connection-status connected';
-                gameConnectionStatus.textContent = 'Connected to opponent';
+                gameConnectionStatus.innerHTML = '<i class="fas fa-circle connected icon"></i>Connected to opponent';
                 gameConnectionStatus.className = 'connection-status connected';
             });
 
@@ -353,19 +502,19 @@
             });
 
             conn.on('close', () => {
-                connectionStatus.textContent = 'Connection closed';
+                connectionStatus.innerHTML = '<i class="fas fa-circle disconnected icon"></i>Connection closed';
                 connectionStatus.className = 'connection-status disconnected';
-                gameConnectionStatus.textContent = 'Connection lost';
+                gameConnectionStatus.innerHTML = '<i class="fas fa-circle disconnected icon"></i>Connection lost';
                 gameConnectionStatus.className = 'connection-status disconnected';
                 if (gameActive) {
-                    gameStatus.textContent = 'Opponent disconnected';
+                    gameStatus.innerHTML = '<i class="fas fa-exclamation-triangle icon"></i>Opponent disconnected';
                     gameActive = false;
                 }
             });
 
             conn.on('error', (err) => {
                 console.error('Connection error:', err);
-                connectionStatus.textContent = 'Connection error';
+                connectionStatus.innerHTML = '<i class="fas fa-circle disconnected icon"></i>Connection error';
                 connectionStatus.className = 'connection-status disconnected';
             });
         }
@@ -382,9 +531,9 @@
             
             // Update game status
             if (isMyTurn) {
-                gameStatus.textContent = 'Your turn (X)';
+                gameStatus.innerHTML = '<i class="fas fa-user icon"></i>Your turn (X)';
             } else {
-                gameStatus.textContent = "Opponent's turn (O)";
+                gameStatus.innerHTML = '<i class="fas fa-user-friends icon"></i>Opponent\'s turn (O)';
             }
             
             // Reset the game board
@@ -403,17 +552,18 @@
             
             // Check for win or draw
             if (checkWin()) {
-                gameStatus.textContent = 'You win!';
+                highlightWinningCells();
+                gameStatus.innerHTML = '<i class="fas fa-trophy icon"></i>You win!';
                 gameActive = false;
                 sendGameData({ type: 'move', index, winner: playerSymbol });
             } else if (checkDraw()) {
-                gameStatus.textContent = "It's a draw!";
+                gameStatus.innerHTML = '<i class="fas fa-handshake icon"></i>It\'s a draw!';
                 gameActive = false;
                 sendGameData({ type: 'move', index, draw: true });
             } else {
                 // Continue game
                 isMyTurn = false;
-                gameStatus.textContent = "Opponent's turn";
+                gameStatus.innerHTML = '<i class="fas fa-user-friends icon"></i>Opponent\'s turn';
                 sendGameData({ type: 'move', index });
             }
         }
@@ -428,21 +578,22 @@
                     updateGameBoardUI();
                     
                     if (data.winner) {
-                        gameStatus.textContent = 'Opponent wins!';
+                        highlightWinningCells();
+                        gameStatus.innerHTML = '<i class="fas fa-trophy icon"></i>Opponent wins!';
                         gameActive = false;
                     } else if (data.draw) {
-                        gameStatus.textContent = "It's a draw!";
+                        gameStatus.innerHTML = '<i class="fas fa-handshake icon"></i>It\'s a draw!';
                         gameActive = false;
                     } else {
                         isMyTurn = true;
-                        gameStatus.textContent = 'Your turn';
+                        gameStatus.innerHTML = '<i class="fas fa-user icon"></i>Your turn';
                     }
                     break;
                     
                 case 'reset':
                     resetGameBoard();
                     isMyTurn = (playerSymbol === 'X');
-                    gameStatus.textContent = isMyTurn ? 'Your turn (X)' : "Opponent's turn (O)";
+                    gameStatus.innerHTML = isMyTurn ? '<i class="fas fa-user icon"></i>Your turn (X)' : '<i class="fas fa-user-friends icon"></i>Opponent\'s turn (O)';
                     gameActive = true;
                     break;
             }
@@ -487,10 +638,21 @@
             for (const pattern of winPatterns) {
                 const [a, b, c] = pattern;
                 if (gameBoard[a] && gameBoard[a] === gameBoard[b] && gameBoard[a] === gameBoard[c]) {
-                    return true;
+                    return pattern;
                 }
             }
-            return false;
+            return null;
+        }
+
+        // Highlight winning cells
+        function highlightWinningCells() {
+            const winPattern = checkWin();
+            if (winPattern) {
+                winPattern.forEach(index => {
+                    const cell = document.querySelector(`.cell[data-index="${index}"]`);
+                    cell.classList.add('win');
+                });
+            }
         }
 
         // Check for a draw
@@ -503,10 +665,10 @@
             navigator.clipboard.writeText(myId)
                 .then(() => {
                     // Show temporary feedback
-                    const originalText = copyIdBtn.textContent;
-                    copyIdBtn.textContent = 'Copied!';
+                    const originalText = copyIdBtn.innerHTML;
+                    copyIdBtn.innerHTML = '<i class="fas fa-check icon"></i>Copied!';
                     setTimeout(() => {
-                        copyIdBtn.textContent = originalText;
+                        copyIdBtn.innerHTML = originalText;
                     }, 2000);
                 })
                 .catch(err => {
@@ -531,7 +693,7 @@
             menuScreen.style.display = 'flex';
             
             // Reset connection status
-            connectionStatus.textContent = 'Ready to connect';
+            connectionStatus.innerHTML = '<i class="fas fa-circle connected icon"></i>Ready to connect';
             connectionStatus.className = 'connection-status connected';
         }
 
